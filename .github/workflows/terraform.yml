@@ -22,6 +22,7 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
+
       - name: Generate and Create S3 Bucket
         run: |
           BUCKET_NAME="tfbubcket$(openssl rand -hex 6)"
@@ -30,11 +31,9 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: 'us-east-1'
 
       - name: Initialize Terraform
         run: |
-          working-directory: ${{ env.WORKING_DIR }}
           terraform init \
             -backend-config="bucket=${{ env.bucket_name }}" \
             -backend-config="key=terraform.tfstate" \

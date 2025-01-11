@@ -34,6 +34,7 @@ jobs:
 
       - name: Initialize Terraform
         run: |
+          working-directory: ${{ env.WORKING_DIR }}
           terraform init \
             -backend-config="bucket=${{ env.bucket_name }}" \
             -backend-config="key=terraform.tfstate" \
@@ -43,11 +44,6 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: 'us-east-1'          
-
-      # Initialize Terraform
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIR }}
-        run: terraform init
 
       # Terraform Format Check
       - name: Terraform Format Check

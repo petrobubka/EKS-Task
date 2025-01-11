@@ -33,6 +33,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Initialize Terraform
+        working-directory: ${{ env.WORKING_DIR }}
         run: |
           terraform init \
             -backend-config="bucket=${{ env.bucket_name }}" \

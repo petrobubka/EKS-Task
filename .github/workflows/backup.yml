@@ -1,7 +1,7 @@
-name: Install and Configure Velero on EKS
+name: Install and Configure Velero on EKS with Azure Backup
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: 
 
 jobs:
   setup-velero:
@@ -31,9 +31,9 @@ jobs:
           # Verify Kubernetes access
           kubectl get nodes
 
-      - name: Install Velero
+      - name: Install Velero CLI
         run: |
-          echo "Installing Velero..."
+          echo "Installing Velero CLI..."
           VELERO_VERSION="v1.15.2"
           DOWNLOAD_URL="https://github.com/vmware-tanzu/velero/releases/download/${VELERO_VERSION}/velero-${VELERO_VERSION}-linux-amd64.tar.gz"
           
@@ -49,7 +49,33 @@ jobs:
           # Verify Velero installation
           velero version
 
-      # Step 5: Validate Velero with EKS
-      - name: Validate Velero
+      - name: Install Velero on EKS with Azure Backup
+        env:
+          BLOB_CONTAINER: ${{ secrets.BLOB_CONTAINER }}
+          AZURE_BACKUP_RESOURCE_GROUP: ${{ secrets.AZURE_BACKUP_RESOURCE_GROUP }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}
+          AZURE_STORAGE_ACCOUNT_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_ACCESS_KEY }}
+          AZURE_BACKUP_SUBSCRIPTION_ID: ${{ secrets.AZURE_BACKUP_SUBSCRIPTION_ID }}
         run: |
-          velero version
+          echo "Creating credentials file for Velero..."
+          cat <<EOF > /tmp/credentials-velero
+          AZURE_STORAGE_ACCOUNT_ACCESS_KEY=${AZURE_STORAGE_ACCOUNT_ACCESS_KEY}
+          EOF
+          
+          echo "Installing Velero on Kubernetes..."
+          velero install \
+            --provider azure \
+            --plugins velero/velero-plugin-for-microsoft-azure:v1.1.0 \
+            --bucket $BLOB_CONTAINER \
+            --secret-file /tmp/credentials-velero \
+            --backup-location-config resourceGroup=$AZURE_BACKUP_RESOURCE_GROUP,storageAccount=$AZURE_STORAGE_ACCOUNT_NAME,storageAccountKeyEnvVar=AZURE_STORAGE_ACCOUNT_ACCESS_KEY,subscriptionId=$AZURE_BACKUP_SUBSCRIPTION_ID \
+            --use-volume-snapshots=false \
+            --use-node-agent
+          
+          echo "Velero installation complete!"
+
+      - name: Restore Velero Backup
+        env:
+          BACKUP_NAME: ${{ secrets.VELERO_BACKUP_NAME }}
+        run: |
+          velero restore create --from-backup $BACKUP_NAME

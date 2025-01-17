@@ -1,38 +1,55 @@
-name: Install Velero
+name: Install and Configure Velero on EKS
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  install-velero:
+  setup-velero:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository (optional, but often required for context)
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Step 2: Install Velero
+      - name: Configure AWS CLI
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+        run: |
+          echo "Configuring AWS CLI..."
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_DEFAULT_REGION
+
+      - name: Set up kubeconfig for EKS
+        run: |
+          echo "Setting up kubeconfig for EKS..."
+          CLUSTER_NAME="my-cluster" # Replace with your EKS cluster name
+          aws eks update-kubeconfig --name $CLUSTER_NAME
+          
+          # Verify Kubernetes access
+          kubectl get nodes
+
       - name: Install Velero
         run: |
-          # Define the version and URL
+          echo "Installing Velero..."
           VELERO_VERSION="v1.15.2"
           DOWNLOAD_URL="https://github.com/vmware-tanzu/velero/releases/download/${VELERO_VERSION}/velero-${VELERO_VERSION}-linux-amd64.tar.gz"
           
           # Download Velero
-          echo "Downloading Velero..."
           curl -L ${DOWNLOAD_URL} -o velero-${VELERO_VERSION}-linux-amd64.tar.gz
           
           # Extract the tar.gz file
-          echo "Extracting Velero..."
           tar -zxvf velero-${VELERO_VERSION}-linux-amd64.tar.gz
           
           # Copy the Velero binary to /usr/local/bin
-          echo "Installing Velero..."
           sudo cp velero-${VELERO_VERSION}-linux-amd64/velero /usr/local/bin/
           
-          # Verify installation
+          # Verify Velero installation
+          velero version
+
+      # Step 5: Validate Velero with EKS
+      - name: Validate Velero
+        run: |
           velero version

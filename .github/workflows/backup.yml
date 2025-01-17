@@ -1,0 +1,38 @@
+name: Install Velero
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  install-velero:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository (optional, but often required for context)
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Install Velero
+      - name: Install Velero
+        run: |
+          # Define the version and URL
+          VELERO_VERSION="v1.15.2"
+          DOWNLOAD_URL="https://github.com/vmware-tanzu/velero/releases/download/${VELERO_VERSION}/velero-${VELERO_VERSION}-linux-amd64.tar.gz"
+          
+          # Download Velero
+          echo "Downloading Velero..."
+          curl -L ${DOWNLOAD_URL} -o velero-${VELERO_VERSION}-linux-amd64.tar.gz
+          
+          # Extract the tar.gz file
+          echo "Extracting Velero..."
+          tar -zxvf velero-${VELERO_VERSION}-linux-amd64.tar.gz
+          
+          # Copy the Velero binary to /usr/local/bin
+          echo "Installing Velero..."
+          sudo cp velero-${VELERO_VERSION}-linux-amd64/velero /usr/local/bin/
+          
+          # Verify installation
+          velero version

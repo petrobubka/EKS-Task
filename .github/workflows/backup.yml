@@ -78,4 +78,4 @@ jobs:
         env:
           BACKUP_NAME: ${{ secrets.VELERO_BACKUP_NAME }}
         run: |
-          velero restore create --from-backup $BACKUP_NAME
+          velero restore create --from-backup backup-1-12-2025-fix2

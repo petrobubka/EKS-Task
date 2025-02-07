@@ -1,6 +1,3 @@
-provider "aws" {
-  region = var.aws_region
-}
 
 module "vpc" {
   source               = "./modules/vpc"
@@ -20,20 +17,6 @@ module "eks" {
   node_max_size         = var.node_max_size
   node_min_size         = var.node_min_size
   ssh_security_group_id = module.vpc.ssh_security_group_id
+  vpc_id                = module.vpc.vpc_id
 }
 
-output "eks_cluster_endpoint" {
-  value = module.eks.eks_cluster_endpoint
-}
-
-output "eks_cluster_id" {
-  value = module.eks.eks_cluster_id
-}
-
-output "vpc_id" {
-  value = module.vpc.vpc_id
-}
-
-output "public_subnet_ids" {
-  value = module.vpc.public_subnet_ids
-}

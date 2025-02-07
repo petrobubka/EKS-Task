@@ -38,3 +38,8 @@ variable "ssh_security_group_id" {
   description = "SSH security group id"
   type        = string
 }
+
+variable "vpc_id" {
+  description = "VPC id"
+  type        = string
+}

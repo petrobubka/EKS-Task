@@ -124,13 +124,10 @@ resource "aws_eks_node_group" "node_group" {
 
 }
 
-
-
 data "tls_certificate" "oidc" {
   url = aws_eks_cluster.cluster.identity[0].oidc[0].issuer
 }
 
-# EKS addon
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name             = aws_eks_cluster.cluster.name
   addon_name               = "aws-ebs-csi-driver"
@@ -139,15 +136,12 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   depends_on               = [aws_eks_node_group.node_group]
 }
 
-# AWS Identity and Access Management (IAM) OpenID Connect (OIDC) provider
-
 resource "aws_iam_openid_connect_provider" "eks" {
   url             = aws_eks_cluster.cluster.identity.0.oidc.0.issuer
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.oidc.certificates[0].sha1_fingerprint]
 }
 
-# IAM
 resource "aws_iam_role" "ebs_csi_driver" {
   name               = "ebs-csi-driver"
   assume_role_policy = data.aws_iam_policy_document.ebs_csi_driver_assume_role.json
@@ -184,4 +178,76 @@ data "aws_iam_policy_document" "ebs_csi_driver_assume_role" {
 resource "aws_iam_role_policy_attachment" "AmazonEBSCSIDriverPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
   role       = aws_iam_role.ebs_csi_driver.name
+}
+data "aws_iam_policy_document" "aws_lbc" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+
+    actions = [
+      "sts:AssumeRole",
+      "sts:TagSession"
+    ]
+  }
+}
+
+resource "aws_eks_addon" "pod_identity" {
+  cluster_name  = aws_eks_cluster.cluster.name
+  addon_name    = "eks-pod-identity-agent"
+  addon_version = "v1.2.0-eksbuild.1"
+}
+
+resource "aws_iam_role" "aws_lbc" {
+  name               = "${aws_eks_cluster.cluster.name}-aws-lbc"
+  assume_role_policy = data.aws_iam_policy_document.aws_lbc.json
+}
+
+resource "aws_iam_policy" "aws_lbc" {
+  policy = file("./modules/eks/iam/AWSLoadBalancerController.json")
+  name   = "AWSLoadBalancerController"
+}
+
+resource "aws_iam_role_policy_attachment" "aws_lbc" {
+  policy_arn = aws_iam_policy.aws_lbc.arn
+  role       = aws_iam_role.aws_lbc.name
+}
+
+resource "aws_eks_pod_identity_association" "aws_lbc" {
+  cluster_name    = aws_eks_cluster.cluster.name
+  namespace       = "kube-system"
+  service_account = "aws-load-balancer-controller"
+  role_arn        = aws_iam_role.aws_lbc.arn
+}
+
+resource "helm_release" "aws_lbc" {
+  name = "aws-load-balancer-controller"
+
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  version    = "1.11.0"
+
+  set {
+    name  = "clusterName"
+    value = aws_eks_cluster.cluster.name
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name  = "vpcId"
+    value = var.vpc_id
+  }
+  depends_on = [
+    aws_eks_node_group.node_group,
+    aws_iam_role.aws_lbc,
+    aws_iam_role_policy_attachment.aws_lbc
+  ]
 }

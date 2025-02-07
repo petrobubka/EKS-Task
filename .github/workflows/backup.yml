@@ -73,6 +73,7 @@ jobs:
             --use-node-agent
           
           echo "Velero installation complete!"
+          sleep 20
 
       - name: Restore Velero Backup
         env:
